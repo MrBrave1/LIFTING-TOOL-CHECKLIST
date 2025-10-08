@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lifting Tools Inspection - MOLETHU PMC</title>
+
+  <!-- CSS (simple) -->
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 20px; background: #f6f7fb; color: #111; }
+    .container { max-width:1100px; margin:0 auto; background:white; padding:18px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+    h1 { text-align:center; font-size:20px; margin-bottom:6px; }
+    .meta { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .meta label { display:block; font-size:12px; color:#333; margin-bottom:4px; }
+    .meta .col { flex:1; min-width:220px; }
+    input[type=text], input[type=date], select, textarea { width:100%; padding:8px; border:1px solid #bbb; border-radius:4px; box-sizing:border-box; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    table th, table td { border:1px solid #bbb; padding:8px; text-align:left; vertical-align:top; font-size:13px; }
+    table th { background:#f0f4f8; font-weight:600; }
+    .actions { display:flex; gap:8px; margin-top:14px; }
+    button { padding:10px 14px; border: none; border-radius:4px; cursor:pointer; background:#0b74de; color:white; font-weight:600; }
+    button.secondary { background:#444; }
+    .small { font-size:12px; color:#666; margin-top:6px; }
+    .flex-row { display:flex; gap:8px; align-items:center; }
+    .two-cols { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  </style>
+
+  <!-- Libraries (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> <!-- SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>MOLETHU PMC PVT LTD — LIFTING TOOLS INSPECTION</h1>
+
+    <div class="meta">
+      <div class="col">
+        <label>Site Name</label>
+        <input type="text" id="siteName" value="Construction of 555 Housing for EWS under PMAY -U at Port Blair, Andman">
+      </div>
+      <div class="col">
+        <label>Client</label>
+        <input type="text" id="client" value="NBCC INDIA">
+      </div>
+      <div class="col">
+        <label>Contractor</label>
+        <input type="text" id="contractor" value="ISHWAR SINGH & ASSOCIATES CONSTRUCTION PVT LTD">
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="col">
+        <label>Date</label>
+        <input type="date" id="insDate" value="">
+      </div>
+      <div class="col">
+        <label>Inspection No.</label>
+        <input type="text" id="insNo" value="MPPL/ISACPL/01">
+      </div>
+      <div class="col">
+        <label>Next Due</label>
+        <input type="text" id="nextDue" readonly>
+      </div>
+    </div>
+
+    <table id="checklistTable">
+      <thead>
+        <tr>
+          <th style="width:45px">S. No.</th>
+          <th style="width:220px">Inspection Item</th>
+          <th>Checkpoint / Criteria</th>
+          <th style="width:140px">Status (OK / Not OK)</th>
+          <th style="width:220px">Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Twelve rows -->
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" style="text-align:center; font-weight:600;">NEXT DUE: <span id="nextDueFooter">-</span></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="two-cols" style="margin-top:12px;">
+      <div>
+        <label>Safety Inspector Name</label>
+        <input type="text" id="inspector" value="">
+      </div>
+      <div>
+        <label>Contractor's Invigilator</label>
+        <input type="text" id="invigilator" value="">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="submitBtn">Submit & Download PDF + Excel</button>
+      <button class="secondary" id="downloadLedgerBtn">Download Ledger (Excel)</button>
+      <button class="secondary" id="clearLedgerBtn" title="Clear ledger from browser">Clear Ledger</button>
+    </div>
+    <div class="small">Ledger stored in your browser (localStorage). On submit, each inspection file and PDF is downloaded to your device. Use <b>Download Ledger</b> to get the full Excel log anytime.</div>
+  </div>
+
+  <!-- Hidden printable view area for PDF generation -->
+  <div id="pdfPrintArea" style="width:1200px;padding:18px;background:white;display:none;">
+    <!-- We'll populate this dynamically -->
+  </div>
+
+<script>
+(function(){
+  /* Checklist items and criteria (from your template) */
+  const items = [
+    {id:1, title:"Identification", criteria:"Shackle is permanently marked with SWL/WLL, size, grade, and manufacturer’s mark"},
+    {id:2, title:"Certification", criteria:"Valid test certificate and traceability documents available"},
+    {id:3, title:"Visual Condition", criteria:"No cracks, deformation, sharp edges, or excessive wear visible"},
+    {id:4, title:"Pin Condition", criteria:"Pin straight, threads undamaged, fits securely and properly"},
+    {id:5, title:"Thread Engagement", criteria:"Full thread engagement with no cross-threading or looseness"},
+    {id:6, title:"Wear Limit", criteria:"Wear on shackle body and pin within permissible limit (<10% of original diameter)"},
+    {id:7, title:"Corrosion", criteria:"No severe corrosion, rust, or pitting"},
+    {id:8, title:"Deformation", criteria:"No elongation, bending, or distortion of body or pin"},
+    {id:9, title:"Alignment", criteria:"Pin and body holes aligned properly; no misalignment during assembly"},
+    {id:10, title:"Locking Mechanism", criteria:"Safety pin / bolt-type shackle lock functioning properly"},
+    {id:11, title:"Load Marking", criteria:"SWL (Safe Working Load) clearly legible"},
+    {id:12, title:"Fitment Check", criteria:"Shackle fits correctly with lifting gear (no binding or side loading)"}
+  ];
+
+  /* Build table rows */
+  const tbody = document.querySelector('#checklistTable tbody');
+  items.forEach(it => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${it.id}</td>
+      <td>${it.title}</td>
+      <td>${it.criteria}</td>
+      <td>
+        <select data-id="${it.id}" class="status">
+          <option value="">--Select--</option>
+          <option value="OK">OK</option>
+          <option value="Not OK">Not OK</option>
+        </select>
+      </td>
+      <td><input type="text" data-id="${it.id}" class="remark" placeholder="Remarks (optional)"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  /* Elements */
+  const insDate = document.getElementById('insDate');
+  const insNo = document.getElementById('insNo');
+  const nextDue = document.getElementById('nextDue');
+  const nextDueFooter = document.getElementById('nextDueFooter');
+  const submitBtn = document.getElementById('submitBtn');
+  const downloadLedgerBtn = document.getElementById('downloadLedgerBtn');
+  const clearLedgerBtn = document.getElementById('clearLedgerBtn');
+
+  /* Initialize date to today */
+  function formatDateDDMMMYYYY(date) {
+    const mNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const d = date.getDate().toString().padStart(2,'0');
+    const mo = mNames[date.getMonth()];
+    const y = date.getFullYear();
+    return `${d}-${mo}-${y}`;
+  }
+
+  function computeNextDueFrom(inputDateStr) {
+    if(!inputDateStr) return '';
+    const d = new Date(inputDateStr);
+    d.setDate(d.getDate() + 15);
+    return formatDateDDMMMYYYY(d);
+  }
+
+  /* update next due on date change */
+  insDate.addEventListener('change', () => {
+    const nd = computeNextDueFrom(insDate.value);
+    nextDue.value = nd;
+    nextDueFooter.innerText = nd || '-';
+  });
+
+  // prefill date with today
+  const today = new Date();
+  const isoToday = today.toISOString().slice(0,10);
+  insDate.value = isoToday;
+  const initialNext = computeNextDueFrom(insDate.value);
+  nextDue.value = initialNext;
+  nextDueFooter.innerText = initialNext;
+
+  /* Ledger functions */
+  const LEDGER_KEY = 'liftingInspectionLedger_v1';
+
+  function loadLedger() {
+    try {
+      const raw = localStorage.getItem(LEDGER_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  }
+  function saveLedger(arr) {
+    localStorage.setItem(LEDGER_KEY, JSON.stringify(arr));
+  }
+
+  /* Gather form data as object */
+  function gatherFormData() {
+    const siteName = document.getElementById('siteName').value || '';
+    const client = document.getElementById('client').value || '';
+    const contractor = document.getElementById('contractor').value || '';
+    const inspector = document.getElementById('inspector').value || '';
+    const invigilator = document.getElementById('invigilator').value || '';
+    const dateVal = insDate.value;
+    const insNoVal = insNo.value || '';
+    const ndText = nextDue.value || computeNextDueFrom(dateVal);
+
+    const statuses = [];
+    document.querySelectorAll('.status').forEach(s => {
+      const id = s.getAttribute('data-id');
+      statuses.push({id: id, status: s.value});
+    });
+    const remarks = [];
+    document.querySelectorAll('.remark').forEach(r => {
+      const id = r.getAttribute('data-id');
+      remarks.push({id: id, remark: r.value});
+    });
+
+    // build item rows with status + remark + text
+    const itemsData = items.map(it => {
+      const st = statuses.find(s=>s.id==it.id)?.status || '';
+      const rm = remarks.find(r=>r.id==it.id)?.remark || '';
+      return {sNo: it.id, item: it.title, criteria: it.criteria, status: st, remark: rm};
+    });
+
+    return {
+      timestamp: new Date().toISOString(),
+      date: dateVal,
+      dateDisplay: formatDateDDMMMYYYY(new Date(dateVal)),
+      inspectionNo: insNoVal,
+      siteName, client, contractor, inspector, invigilator,
+      nextDue: ndText,
+      items: itemsData
+    };
+  }
+
+  /* Generate Excel for single inspection using SheetJS */
+  function exportInspectionToExcel(dataObj) {
+    /* Build worksheet rows */
+    const wsData = [];
+    // Header rows like your sheet
+    wsData.push(["MOLETHU PMC PVT LTD"]);
+    wsData.push(["LIFTING TOOLS INSPECTION"]);
+    wsData.push([]);
+    wsData.push(["SITE NAME:", dataObj.siteName]);
+    wsData.push(["CLIENT:", dataObj.client]);
+    wsData.push(["CONTRACTOR:", dataObj.contractor]);
+    wsData.push([]);
+    wsData.push(["DATE", dataObj.dateDisplay, "INSPECTION NO.", dataObj.inspectionNo]);
+    wsData.push([]);
+    wsData.push(["S. No.","Inspection Item","Checkpoint / Criteria","Status (OK/Not OK)","Remarks"]);
+    dataObj.items.forEach(row => {
+      wsData.push([row.sNo, row.item, row.criteria, row.status, row.remark]);
+    });
+    wsData.push([]);
+    wsData.push([`NEXT DUE: ${dataObj.nextDue}`]);
+    wsData.push([]);
+    wsData.push(["Safety Inspector", "", "", "Contractor's Invigilator"]);
+    wsData.push([dataObj.inspector, "", "", dataObj.invigilator]);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Adjust column widths a bit
+    const wscols = [
+      {wch:6},{wch:22},{wch:60},{wch:18},{wch:30}
+    ];
+    ws['!cols'] = wscols;
+
+    XLSX.utils.book_append_sheet(wb, ws, "Inspection");
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const fname = `${dataObj.inspectionNo || 'inspection'}_${dataObj.date}.xlsx`;
+    saveAs(new Blob([wbout], {type:"application/octet-stream"}), fname);
+  }
+
+  /* Export master ledger to Excel (all records) */
+  function exportLedgerToExcel() {
+    const ledger = loadLedger();
+    if(!ledger || ledger.length===0) {
+      alert("Ledger is empty. No records to download.");
+      return;
+    }
+    // For ledger, flatten items into columns for quick overview (one row per inspection)
+    const header = ["timestamp","date","dateDisplay","inspectionNo","siteName","client","contractor","inspector","invigilator","nextDue"];
+    // also add item statuses and remarks as columns: Item1_Status, Item1_Remark, ...
+    items.forEach(it => {
+      header.push(`Item${it.id}_Status`);
+      header.push(`Item${it.id}_Remark`);
+    });
+    const aoa = [header];
+    ledger.forEach(rec => {
+      const row = [
+        rec.timestamp, rec.date, rec.dateDisplay, rec.inspectionNo, rec.siteName, rec.client, rec.contractor, rec.inspector, rec.invigilator, rec.nextDue
+      ];
+      // append item statuses & remarks
+      rec.items.forEach(itm => {
+        row.push(itm.status || "");
+        row.push(itm.remark || "");
+      });
+      aoa.push(row);
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = new Array(header.length).fill({wch:18});
+    XLSX.utils.book_append_sheet(wb, ws, "Ledger");
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const fname = `Inspection_Ledger_${(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'-')}.xlsx`;
+    saveAs(new Blob([wbout], {type:"application/octet-stream"}), fname);
+  }
+
+  /* Generate PDF (rendering a styled copy of the inspection) */
+  async function exportInspectionToPDF(dataObj) {
+    // Build printable HTML for the PDF
+    const printArea = document.getElementById('pdfPrintArea');
+    printArea.innerHTML = ''; // clear
+
+    const style = `
+      <style>
+        body{font-family:Arial,Helvetica,sans-serif;color:#111;}
+        .header{ text-align:center; }
+        .header h2{ margin:2px; font-size:18px; }
+        .meta{ margin-top:8px; font-size:12px; }
+        table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+        table th, table td { border:1px solid #444; padding:6px; }
+        table th { background:#eee; font-weight:700; }
+        .footer { margin-top:12px; display:flex; justify-content:space-between; font-size:12px; }
+      </style>
+    `;
+    const headerHtml = `
+      <div class="header">
+        <h2>MOLETHU PMC PVT LTD</h2>
+        <div style="font-size:14px; font-weight:600;">LIFTING TOOLS INSPECTION</div>
+      </div>
+      <div class="meta">
+        <div><strong>SITE NAME:</strong> ${dataObj.siteName}</div>
+        <div><strong>CLIENT:</strong> ${dataObj.client}</div>
+        <div><strong>CONTRACTOR:</strong> ${dataObj.contractor}</div>
+        <div style="margin-top:6px;"><strong>DATE:</strong> ${dataObj.dateDisplay} &nbsp;&nbsp; <strong>INSPECTION NO.:</strong> ${dataObj.inspectionNo}</div>
+      </div>
+    `;
+
+    let tableHtml = `<table><thead><tr><th style="width:45px">S. No.</th><th style="width:220px">Inspection Item</th><th>Checkpoint / Criteria</th><th style="width:110px">Status</th><th style="width:180px">Remarks</th></tr></thead><tbody>`;
+    dataObj.items.forEach(it => {
+      tableHtml += `<tr><td>${it.sNo}</td><td>${it.item}</td><td>${it.criteria}</td><td>${it.status || ''}</td><td>${it.remark || ''}</td></tr>`;
+    });
+    tableHtml += `</tbody></table>`;
+
+    const footerHtml = `<div class="footer"><div>NEXT DUE: ${dataObj.nextDue}</div><div>Safety Inspector: ${dataObj.inspector} &nbsp;&nbsp;&nbsp; Contractor's Invigilator: ${dataObj.invigilator}</div></div>`;
+
+    printArea.innerHTML = style + headerHtml + tableHtml + footerHtml;
+    printArea.style.display = 'block';
+    // Wait a moment for styles/layout
+    await new Promise(res => setTimeout(res, 200));
+
+    // Use html2canvas + jsPDF to create PDF (A4 portrait)
+    const canvas = await html2canvas(printArea, {scale: 2});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    // A4 size in px at 96dpi ~ 595 x 842 points
+    const pdf = new jsPDF({unit:'pt', format:'a4', compress: true});
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgProps = {width: canvas.width, height: canvas.height};
+    // Calculate image scale to fit width
+    const ratio = pageWidth / canvas.width;
+    const imgHeightScaled = canvas.height * ratio;
+    // If content height > pageHeight, split into multiple pages
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeightScaled);
+    // if longer than page, add subsequent pages
+    let remainingHeight = imgHeightScaled - pageHeight;
+    let position = -pageHeight;
+    while (remainingHeight > -1) {
+      position += pageHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeightScaled);
+      remainingHeight -= pageHeight;
+    }
+
+    const fname = `${dataObj.inspectionNo || 'inspection'}_${dataObj.date}.pdf`;
+    pdf.save(fname);
+
+    printArea.style.display = 'none';
+  }
+
+  /* Submit handler */
+  submitBtn.addEventListener('click', async function(e) {
+    e.preventDefault();
+    // gather data
+    const dataObj = gatherFormData();
+    // basic validation
+    if (!dataObj.date) { alert("Please enter Date."); return; }
+    // append ledger
+    const ledger = loadLedger();
+    ledger.push(dataObj);
+    saveLedger(ledger);
+
+    // Generate Excel and PDF for this inspection
+    try {
+      exportInspectionToExcel(dataObj);
+    } catch (err) {
+      console.error("Excel export error:", err);
+      alert("Error exporting Excel. See console for details.");
+    }
+
+    try {
+      await exportInspectionToPDF(dataObj);
+    } catch (err) {
+      console.error("PDF export error:", err);
+      alert("Error exporting PDF. See console for details.");
+    }
+
+    alert("Saved to ledger (browser). Files downloaded: Excel and PDF.");
+  });
+
+  downloadLedgerBtn.addEventListener('click', function() {
+    exportLedgerToExcel();
+  });
+
+  clearLedgerBtn.addEventListener('click', function() {
+    if(confirm("Clear saved ledger from this browser? This cannot be undone.")) {
+      localStorage.removeItem(LEDGER_KEY);
+      alert("Ledger cleared.");
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
