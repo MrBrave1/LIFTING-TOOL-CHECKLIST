@@ -4,8 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Lifting Tools Inspection - MOLETHU PMC</title>
-
-  <!-- CSS (simple) -->
   <style>
     body { font-family: Arial, Helvetica, sans-serif; margin: 20px; background: #f6f7fb; color: #111; }
     .container { max-width:1100px; margin:0 auto; background:white; padding:18px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
@@ -23,10 +21,9 @@
     .small { font-size:12px; color:#666; margin-top:6px; }
     .flex-row { display:flex; gap:8px; align-items:center; }
     .two-cols { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .image-preview { max-width:120px; margin-top:6px; display:none; border:1px solid #bbb; border-radius:4px; }
   </style>
-
-  <!-- Libraries (CDN) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> <!-- SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -34,7 +31,7 @@
 <body>
   <div class="container">
     <h1>MOLETHU PMC PVT LTD — LIFTING TOOLS INSPECTION</h1>
-
+    
     <div class="meta">
       <div class="col">
         <label>Site Name</label>
@@ -75,15 +72,27 @@
           <th style="width:220px">Remarks</th>
         </tr>
       </thead>
-      <tbody>
-        <!-- Twelve rows -->
-      </tbody>
+      <tbody></tbody>
       <tfoot>
         <tr>
           <td colspan="5" style="text-align:center; font-weight:600;">NEXT DUE: <span id="nextDueFooter">-</span></td>
         </tr>
       </tfoot>
     </table>
+
+    <!-- Image Upload Section -->
+    <div class="two-cols" style="margin-top:12px;">
+      <div>
+        <label for="img1">Upload Photo 1 (Camera/Gallery)</label>
+        <input type="file" accept="image/*" capture="environment" id="img1">
+        <img id="imgPreview1" class="image-preview" />
+      </div>
+      <div>
+        <label for="img2">Upload Photo 2 (Camera/Gallery)</label>
+        <input type="file" accept="image/*" capture="environment" id="img2">
+        <img id="imgPreview2" class="image-preview" />
+      </div>
+    </div>
 
     <div class="two-cols" style="margin-top:12px;">
       <div>
@@ -104,14 +113,12 @@
     <div class="small">Ledger stored in your browser (localStorage). On submit, each inspection file and PDF is downloaded to your device. Use <b>Download Ledger</b> to get the full Excel log anytime.</div>
   </div>
 
-  <!-- Hidden printable view area for PDF generation -->
   <div id="pdfPrintArea" style="width:1200px;padding:18px;background:white;display:none;">
     <!-- We'll populate this dynamically -->
   </div>
 
 <script>
 (function(){
-  /* Checklist items and criteria (from your template) */
   const items = [
     {id:1, title:"Identification", criteria:"Shackle is permanently marked with SWL/WLL, size, grade, and manufacturer’s mark"},
     {id:2, title:"Certification", criteria:"Valid test certificate and traceability documents available"},
@@ -127,7 +134,6 @@
     {id:12, title:"Fitment Check", criteria:"Shackle fits correctly with lifting gear (no binding or side loading)"}
   ];
 
-  /* Build table rows */
   const tbody = document.querySelector('#checklistTable tbody');
   items.forEach(it => {
     const tr = document.createElement('tr');
@@ -147,7 +153,6 @@
     tbody.appendChild(tr);
   });
 
-  /* Elements */
   const insDate = document.getElementById('insDate');
   const insNo = document.getElementById('insNo');
   const nextDue = document.getElementById('nextDue');
@@ -156,7 +161,6 @@
   const downloadLedgerBtn = document.getElementById('downloadLedgerBtn');
   const clearLedgerBtn = document.getElementById('clearLedgerBtn');
 
-  /* Initialize date to today */
   function formatDateDDMMMYYYY(date) {
     const mNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const d = date.getDate().toString().padStart(2,'0');
@@ -172,14 +176,12 @@
     return formatDateDDMMMYYYY(d);
   }
 
-  /* update next due on date change */
   insDate.addEventListener('change', () => {
     const nd = computeNextDueFrom(insDate.value);
     nextDue.value = nd;
     nextDueFooter.innerText = nd || '-';
   });
 
-  // prefill date with today
   const today = new Date();
   const isoToday = today.toISOString().slice(0,10);
   insDate.value = isoToday;
@@ -187,7 +189,6 @@
   nextDue.value = initialNext;
   nextDueFooter.innerText = initialNext;
 
-  /* Ledger functions */
   const LEDGER_KEY = 'liftingInspectionLedger_v1';
 
   function loadLedger() {
@@ -200,7 +201,30 @@
     localStorage.setItem(LEDGER_KEY, JSON.stringify(arr));
   }
 
-  /* Gather form data as object */
+  // Image preview logic
+  document.getElementById('img1').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById('imgPreview1').src = ev.target.result;
+        document.getElementById('imgPreview1').style.display = 'block';
+      }
+      reader.readAsDataURL(file);
+    }
+  });
+  document.getElementById('img2').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById('imgPreview2').src = ev.target.result;
+        document.getElementById('imgPreview2').style.display = 'block';
+      }
+      reader.readAsDataURL(file);
+    }
+  });
+
   function gatherFormData() {
     const siteName = document.getElementById('siteName').value || '';
     const client = document.getElementById('client').value || '';
@@ -222,12 +246,15 @@
       remarks.push({id: id, remark: r.value});
     });
 
-    // build item rows with status + remark + text
     const itemsData = items.map(it => {
       const st = statuses.find(s=>s.id==it.id)?.status || '';
       const rm = remarks.find(r=>r.id==it.id)?.remark || '';
       return {sNo: it.id, item: it.title, criteria: it.criteria, status: st, remark: rm};
     });
+
+    // Photo base64 data
+    const img1 = document.getElementById('imgPreview1').src || '';
+    const img2 = document.getElementById('imgPreview2').src || '';
 
     return {
       timestamp: new Date().toISOString(),
@@ -236,15 +263,13 @@
       inspectionNo: insNoVal,
       siteName, client, contractor, inspector, invigilator,
       nextDue: ndText,
-      items: itemsData
+      items: itemsData,
+      img1, img2
     };
   }
 
-  /* Generate Excel for single inspection using SheetJS */
   function exportInspectionToExcel(dataObj) {
-    /* Build worksheet rows */
     const wsData = [];
-    // Header rows like your sheet
     wsData.push(["MOLETHU PMC PVT LTD"]);
     wsData.push(["LIFTING TOOLS INSPECTION"]);
     wsData.push([]);
@@ -266,8 +291,6 @@
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Adjust column widths a bit
     const wscols = [
       {wch:6},{wch:22},{wch:60},{wch:18},{wch:30}
     ];
@@ -279,16 +302,13 @@
     saveAs(new Blob([wbout], {type:"application/octet-stream"}), fname);
   }
 
-  /* Export master ledger to Excel (all records) */
   function exportLedgerToExcel() {
     const ledger = loadLedger();
     if(!ledger || ledger.length===0) {
       alert("Ledger is empty. No records to download.");
       return;
     }
-    // For ledger, flatten items into columns for quick overview (one row per inspection)
     const header = ["timestamp","date","dateDisplay","inspectionNo","siteName","client","contractor","inspector","invigilator","nextDue"];
-    // also add item statuses and remarks as columns: Item1_Status, Item1_Remark, ...
     items.forEach(it => {
       header.push(`Item${it.id}_Status`);
       header.push(`Item${it.id}_Remark`);
@@ -298,7 +318,6 @@
       const row = [
         rec.timestamp, rec.date, rec.dateDisplay, rec.inspectionNo, rec.siteName, rec.client, rec.contractor, rec.inspector, rec.invigilator, rec.nextDue
       ];
-      // append item statuses & remarks
       rec.items.forEach(itm => {
         row.push(itm.status || "");
         row.push(itm.remark || "");
@@ -314,11 +333,9 @@
     saveAs(new Blob([wbout], {type:"application/octet-stream"}), fname);
   }
 
-  /* Generate PDF (rendering a styled copy of the inspection) */
   async function exportInspectionToPDF(dataObj) {
-    // Build printable HTML for the PDF
     const printArea = document.getElementById('pdfPrintArea');
-    printArea.innerHTML = ''; // clear
+    printArea.innerHTML = '';
 
     const style = `
       <style>
@@ -351,28 +368,37 @@
     });
     tableHtml += `</tbody></table>`;
 
+    // Insert images after table
+    let imagesHtml = '';
+    if (dataObj.img1 && dataObj.img1.startsWith('data:image')) {
+      imagesHtml += `<div style="margin:12px 0;">
+        <b>Photo 1:</b><br>
+        <img src="${dataObj.img1}" style="max-width:280px;max-height:220px;border:1px solid #ccc;">
+      </div>`;
+    }
+    if (dataObj.img2 && dataObj.img2.startsWith('data:image')) {
+      imagesHtml += `<div style="margin:12px 0;">
+        <b>Photo 2:</b><br>
+        <img src="${dataObj.img2}" style="max-width:280px;max-height:220px;border:1px solid #ccc;">
+      </div>`;
+    }
+
     const footerHtml = `<div class="footer"><div>NEXT DUE: ${dataObj.nextDue}</div><div>Safety Inspector: ${dataObj.inspector} &nbsp;&nbsp;&nbsp; Contractor's Invigilator: ${dataObj.invigilator}</div></div>`;
 
-    printArea.innerHTML = style + headerHtml + tableHtml + footerHtml;
+    printArea.innerHTML = style + headerHtml + tableHtml + imagesHtml + footerHtml;
     printArea.style.display = 'block';
-    // Wait a moment for styles/layout
     await new Promise(res => setTimeout(res, 200));
 
-    // Use html2canvas + jsPDF to create PDF (A4 portrait)
     const canvas = await html2canvas(printArea, {scale: 2});
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
-    // A4 size in px at 96dpi ~ 595 x 842 points
     const pdf = new jsPDF({unit:'pt', format:'a4', compress: true});
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const imgProps = {width: canvas.width, height: canvas.height};
-    // Calculate image scale to fit width
     const ratio = pageWidth / canvas.width;
     const imgHeightScaled = canvas.height * ratio;
-    // If content height > pageHeight, split into multiple pages
     pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeightScaled);
-    // if longer than page, add subsequent pages
     let remainingHeight = imgHeightScaled - pageHeight;
     let position = -pageHeight;
     while (remainingHeight > -1) {
@@ -388,19 +414,14 @@
     printArea.style.display = 'none';
   }
 
-  /* Submit handler */
   submitBtn.addEventListener('click', async function(e) {
     e.preventDefault();
-    // gather data
     const dataObj = gatherFormData();
-    // basic validation
     if (!dataObj.date) { alert("Please enter Date."); return; }
-    // append ledger
     const ledger = loadLedger();
     ledger.push(dataObj);
     saveLedger(ledger);
 
-    // Generate Excel and PDF for this inspection
     try {
       exportInspectionToExcel(dataObj);
     } catch (err) {
@@ -414,7 +435,6 @@
       console.error("PDF export error:", err);
       alert("Error exporting PDF. See console for details.");
     }
-
     alert("Saved to ledger (browser). Files downloaded: Excel and PDF.");
   });
 
